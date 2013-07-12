@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context antiJARLocking="true" path="/processing">
+    <Resource
+      name="jdbc/processingDS"
+      type="javax.sql.DataSource"
+      username="user2"
+      password="user_2"
+      driverClassName="com.sybase.jdbc4.jdbc.SybDriver"
+      maxIdle="2"
+      maxWait="5000"
+      showSQL="true"
+      validationQuery="SELECT 1"
+      url="jdbc:sybase:Tds:HomePC:5000/kinomir;sendStringParametersAsUnicode=false"
+      maxActive="4">
+    </Resource>
+</Context>
+
