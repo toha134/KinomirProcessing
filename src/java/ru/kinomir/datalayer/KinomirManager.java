@@ -16,6 +16,12 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.util.Map;
 import org.apache.log4j.Logger;
+import ru.kinomir.datalayer.dto.AddPaymentResultDTO;
+import ru.kinomir.datalayer.dto.ClientInfoDTO;
+import ru.kinomir.datalayer.dto.OrderInfoDTO;
+import ru.kinomir.datalayer.dto.OrderStatusDTO;
+import ru.kinomir.datalayer.dto.OrderToNullDTO;
+import ru.kinomir.tools.sql.SqlUtils;
 
 /**
  *
@@ -23,51 +29,76 @@ import org.apache.log4j.Logger;
  */
 public class KinomirManager {
 
-    private static final String DISCOUNT = "DISCOUNT";
+    public static final String DISCOUNT = "DISCOUNT";
     public static final String IDCLIENT = "IDCLIENT";
-    private static final String IFDISCOUNT = "IFDISCOUNT";
-    private static final String ALLFIELDS = "ALLFIELDS";
-    private static final String ASID = "ASID";
-    private static final String IDBUILDING = "IDBUILDING";
-    private static final String IDGENRE = "IDGENRE";
-    private static final String IDHALL = "IDHALL";
-    private static final String IDPERFORMANCE = "IDPERFORMANCE";
-    private static final String IDSHOW = "IDSHOW";
-    private static final String IDSHOWTYPE = "IDSHOWTYPE";
-    private static final String BEGINTIME = "BEGINTIME";
-    private static final String ENDTIME = "ENDTIME";
-    private static final String IDPLACE = "IDPLACE";
+    public static final String IFDISCOUNT = "IFDISCOUNT";
+    public static final String ALLFIELDS = "ALLFIELDS";
+    public static final String ASID = "ASID";
+    public static final String IDBUILDING = "IDBUILDING";
+    public static final String IDGENRE = "IDGENRE";
+    public static final String IDHALL = "IDHALL";
+    public static final String IDPERFORMANCE = "IDPERFORMANCE";
+    public static final String IDSHOW = "IDSHOW";
+    public static final String IDSHOWTYPE = "IDSHOWTYPE";
+    public static final String BEGINTIME = "BEGINTIME";
+    public static final String ENDTIME = "ENDTIME";
+    public static final String IDPLACE = "IDPLACE";
     public static final String IDORDER = "IDORDER";
-    private static final String DESCRIPTION = "DESCRIPTION";
-    private static final String WEEKS = "WEEKS";
-    private static final String WITHPRICE = "WITHPRICE";
-    private static final String ALLPLACES = "ALLPLACES";
-    private static final String IDPRICECATEGORY = "IDPRICECATEGORY";
-    private static final String EMAIL = "EMAIL";
-    private static final String IDUSER = "IDUSER";
-    private static final String MARK = "MARK";
-    private static final String IDPAYMENTMETHOD = "IDPAYMENTMETHOD";
-    private static final String AMOUNT = "AMOUNT";
+    public static final String DESCRIPTION = "DESCRIPTION";
+    public static final String WEEKS = "WEEKS";
+    public static final String WITHPRICE = "WITHPRICE";
+    public static final String ALLPLACES = "ALLPLACES";
+    public static final String IDPRICECATEGORY = "IDPRICECATEGORY";
+    public static final String EMAIL = "EMAIL";
+    public static final String IDUSER = "IDUSER";
+    public static final String MARK = "MARK";
+    public static final String IDPAYMENTMETHOD = "IDPAYMENTMETHOD";
+    public static final String AMOUNT = "AMOUNT";
+    public static final String BANKTRXID = "BANK_TRX_ID";
+    public static final String PAYATTRIBYTES = "PAY_ATTRIBYTES";
 
-    public static ResultSet getOrderInfo(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+    public static OrderInfoDTO getOrderInfo(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
         PreparedStatement sp = null;
+        ResultSet rs = null;
         try {
-            sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderInfo ?");
+            if (params.get(IDCLIENT) != null) {
+                sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderInfo ?, ?");
+            } else {
+                sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderInfo ?");
+            }
             if (params.get(IDORDER) != null) {
                 sp.setInt(1, Integer.parseInt(params.get(IDORDER)));
             }
-            return sp.executeQuery();
-        } finally {
-            if (sp != null) {
-                sp.close();
+            if (params.get(IDCLIENT) != null) {
+                sp.setInt(2, Integer.parseInt(params.get(IDCLIENT)));
             }
+            rs = sp.executeQuery();
+            return new OrderInfoDTO(rs);
+        } finally {
+            SqlUtils.closeSQLObjects(rs, sp);
         }
     }
 
-    public static ResultSet addPayment(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+    public static OrderStatusDTO getOrderStatus(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
         PreparedStatement sp = null;
+        ResultSet rs = null;
         try {
-            sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?");
+            sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderStatus ?");
+            if (params.get(IDORDER) != null) {
+                sp.setInt(1, Integer.parseInt(params.get(IDORDER)));
+            }
+            rs = sp.executeQuery();
+            return new OrderStatusDTO(rs);
+        } finally {
+            SqlUtils.closeSQLObjects(rs, sp);
+        }
+    }
+
+    public static AddPaymentResultDTO addPayment(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+        PreparedStatement sp = null;
+        ResultSet rs = null;
+        try {
+            sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?, ?, ?");
             if (params.get(IDORDER) != null) {
                 sp.setLong(1, Long.parseLong(params.get(IDORDER)));
             }
@@ -88,11 +119,20 @@ public class KinomirManager {
             } else {
                 sp.setNull(5, java.sql.Types.INTEGER);
             }
-            return sp.executeQuery();
-        } finally {
-            if (sp != null) {
-                sp.close();
+            if (params.get(BANKTRXID) != null) {
+                sp.setString(6, params.get(BANKTRXID));
+            } else {
+                sp.setNull(6, java.sql.Types.VARCHAR);
             }
+            if (params.get(PAYATTRIBYTES) != null) {
+                sp.setString(7, params.get(PAYATTRIBYTES));
+            } else {
+                sp.setNull(7, java.sql.Types.VARCHAR);
+            }
+            rs = sp.executeQuery();
+            return new AddPaymentResultDTO(rs);
+        } finally {
+            SqlUtils.closeSQLObjects(rs, sp);
         }
     }
 
@@ -155,8 +195,9 @@ public class KinomirManager {
         }
     }
 
-    public static ResultSet getClientInfo(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+    public static ClientInfoDTO getClientInfo(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
         PreparedStatement sp = null;
+        ResultSet rs = null;
         try {
             sp = conn.prepareStatement("exec dbo.MyWeb_GetClientInfo ?, ?");
             if (params.get(EMAIL) != null) {
@@ -169,11 +210,10 @@ public class KinomirManager {
             } else {
                 sp.setNull(2, java.sql.Types.INTEGER);
             }
-            return sp.executeQuery();
+            rs = sp.executeQuery();
+            return new ClientInfoDTO(rs);
         } finally {
-            if (sp != null) {
-                sp.close();
-            }
+            SqlUtils.closeSQLObjects(rs, sp);
         }
     }
 
@@ -535,18 +575,18 @@ public class KinomirManager {
         }
     }
 
-    public static ResultSet setOrderToNull(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+    public static OrderToNullDTO setOrderToNull(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
         PreparedStatement sp = null;
+        ResultSet rs = null;
         try {
             sp = conn.prepareStatement("exec dbo.Wga_SetOrderToNull ?");
             if (params.get(IDORDER) != null) {
                 sp.setLong(1, Long.parseLong(params.get(IDORDER)));
             }
-            return sp.executeQuery();
+            rs = sp.executeQuery();
+            return new OrderToNullDTO(rs);
         } finally {
-            if (sp != null) {
-                sp.close();
-            }
+            SqlUtils.closeSQLObjects(rs, sp);
         }
     }
 

@@ -14,7 +14,6 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -24,6 +23,11 @@ import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import ru.kinomir.datalayer.KinomirManager;
+import ru.kinomir.datalayer.dto.AddPaymentResultDTO;
+import ru.kinomir.datalayer.dto.ClientInfoDTO;
+import ru.kinomir.datalayer.dto.OrderInfoDTO;
+import ru.kinomir.datalayer.dto.OrderStatusDTO;
+import ru.kinomir.datalayer.dto.OrderToNullDTO;
 import ru.kinomir.tools.http.URLQuery;
 
 /**
@@ -44,58 +48,48 @@ public class PurchaseMemento {
 
     public static Purchase getPurchase(Long orderId, Long idClient) {
         Connection conn = null;
-        PreparedStatement sp = null;
-        ResultSet rs = null;
+        Map<String, String> params = new HashMap<String, String>();
+        params.put(KinomirManager.IDORDER, orderId.toString());
+        params.put(KinomirManager.IDCLIENT, idClient != null ? idClient.toString() : null);
         try {
             conn = getConnection();
-            if (idClient != null) {
-                sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderInfo ?, ?");
-            } else {
-                sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderInfo ?");
-            }
-            sp.setLong(1, orderId);
-            if (idClient != null) {
-                sp.setLong(2, idClient);
-            }
-            rs = sp.executeQuery();
-
-            if (rs.next()) {
-                StringBuilder longDesc = new StringBuilder("Билеты на ").append(rs.getString(SHOWNAME_COLUMN)).append(" ");
-                String curShow = rs.getString(SHOWNAME_COLUMN);
-                Double amount = rs.getDouble("ordertotalticketssum");
-                int count = 0;
-                do {
-                    if (curShow.equals(rs.getString(SHOWNAME_COLUMN))) {
-                        count++;
-                    } else {
-                        longDesc.append('(').append(count).append(')').append(". Билеты на ").append(rs.getString(SHOWNAME_COLUMN)).append(" ");;
-                        count = 0;
-                    }
-                } while (rs.next());
-                if (count == 1) {
-                    longDesc.append(count).append(" билет");
-                } else if (count > 1 && count < 5) {
-                    longDesc.append(count).append(" билета");
+            OrderInfoDTO orderInfo = KinomirManager.getOrderInfo(conn, params);
+            StringBuilder longDesc = new StringBuilder("Билеты на ").append(orderInfo.getOrderInfo(SHOWNAME_COLUMN)).append(" ");
+            String curShow = orderInfo.getOrderInfo(SHOWNAME_COLUMN);
+            Double amount = Double.parseDouble(orderInfo.getOrderInfo("ordertotalticketssum"));
+            int count = 0;
+            for (Map<String, String> oneOrderString : orderInfo.getOrderInfoValues()) {
+                if (curShow.equals(oneOrderString.get(SHOWNAME_COLUMN))) {
+                    count++;
                 } else {
-                    longDesc.append(count).append(" билетов");
+                    longDesc.append('(').append(count).append(')').append(". Билеты на ").append(oneOrderString.get(SHOWNAME_COLUMN)).append(" ");;
+                    if (count == 1) {
+                        longDesc.append(count).append(" билет");
+                    } else if (count > 1 && count < 5) {
+                        longDesc.append(count).append(" билета");
+                    } else {
+                        longDesc.append(count).append(" билетов");
+                    }
+                    curShow = oneOrderString.get(SHOWNAME_COLUMN);
+                    count = 0;
                 }
-                String longDescStr = longDesc.toString();
-                return new Purchase(amount, "Покупка билетов", longDescStr, orderId);
-            } else {
-                return null;
             }
+            if (count == 1) {
+                longDesc.append(count).append(" билет");
+            } else if (count > 1 && count < 5) {
+                longDesc.append(count).append(" билета");
+            } else {
+                longDesc.append(count).append(" билетов");
+            }
+            String longDescStr = longDesc.toString();
+            return new Purchase(amount, "Покупка билетов", longDescStr, orderId);
+
         } catch (SQLException ex) {
             logger.error("Error while register payment", ex);
         } catch (NamingException ex) {
             logger.error("Error while register payment", ex);
         } finally {
             try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (sp != null) {
-                    sp.close();
-                }
                 if (conn != null) {
                     conn.close();
                 }
@@ -108,48 +102,31 @@ public class PurchaseMemento {
 
     public static Purchase registerPayment(Long orderId, String bank_trx_id, String attributes, double amount, int idTypePayment) {
         Connection conn = null;
-        PreparedStatement sp = null;
-        ResultSet rs = null;
+        Map<String, String> paymentParams = new HashMap<String, String>();
+        paymentParams.put(KinomirManager.IDORDER, orderId.toString());
+        paymentParams.put(KinomirManager.AMOUNT, Double.toString(amount / 100d));
+        paymentParams.put(KinomirManager.IDPAYMENTMETHOD, Integer.toString(idTypePayment));
+        paymentParams.put(KinomirManager.MARK, "RUR");
+        paymentParams.put(KinomirManager.IDCLIENT, null);
+        paymentParams.put(KinomirManager.BANKTRXID, bank_trx_id);
+        paymentParams.put(KinomirManager.PAYATTRIBYTES, attributes);
         try {
             conn = getConnection();
-            sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?, ?, ?");
-            sp.setLong(1, orderId);
-            sp.setDouble(2, amount / 100d);
-            sp.setInt(3, idTypePayment);
-            sp.setString(4, "RUR");
-            sp.setNull(5, java.sql.Types.VARCHAR);
-            sp.setString(6, bank_trx_id);
-            sp.setString(7, attributes);
-            rs = sp.executeQuery();
-            if (rs.next()) {
-                String resultDesc = null;
-                try {
-                    resultDesc = rs.getString("ResultDescription");
-                } catch (Exception ex) {
-                    logger.error("Error while register payment", ex);
-                    resultDesc = "";
-                }
-                Purchase res = new Purchase(amount, resultDesc, null, orderId);
-                if (rs.getInt("Result") == 0) {
-                    res.setResult(Purchase.REGISTERED);
-                    return res;
-                } else {
-                    res.setResult(Purchase.PAYMENT_FAILED);
-                }
-                return res;
+            AddPaymentResultDTO paymentResult = KinomirManager.addPayment(conn, paymentParams);
+            String resultDesc = paymentResult.getResultDescription();
+            Purchase res = new Purchase(amount, resultDesc, null, orderId);
+            if ("0".equals(paymentResult.getResult())) {
+                res.setResult(Purchase.REGISTERED);
+            } else {
+                res.setResult(Purchase.PAYMENT_FAILED);
             }
-        } catch (SQLException ex) {
-            logger.error("Error while register payment", ex);
+            return res;
         } catch (NamingException ex) {
+            logger.error("Error while register payment", ex);
+        } catch (SQLException ex) {
             logger.error("Error while register payment", ex);
         } finally {
             try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (sp != null) {
-                    sp.close();
-                }
                 if (conn != null) {
                     conn.close();
                 }
@@ -162,37 +139,30 @@ public class PurchaseMemento {
 
     public static Purchase dropOrder(Long idOrder) {
         Connection conn = null;
-        PreparedStatement sp = null;
-        ResultSet rs = null;
         Purchase purch = new Purchase(0d, "", "", idOrder);
         purch.setResult(Purchase.PAYMENT_FAILED);
         try {
             conn = getConnection();
-            sp = conn.prepareStatement("exec dbo.Wga_GetOrderStatus ?");
-            sp.setLong(1, idOrder);
-            rs = sp.executeQuery();
-            if (rs.next()) {
-                if (rs.getInt("OrderState") <= 1) {
-                    rs.close();
-                    sp.close();
-                    logger.info("Order in processing, can drop it");
-                    sp = conn.prepareStatement("exec dbo.Wga_SetOrderToNull ?");
-                    sp.setLong(1, idOrder);
-                    rs = sp.executeQuery();
-                    if (rs.next()) {
-                        try {
-                            logger.info("Order is set to null");
-                            purch.setResult(Purchase.REGISTERED);
-                            return purch;
-                        } catch (Exception ex) {
-                            logger.error("Error while drop order", ex);
-                        }
+            Map<String, String> orderParams = new HashMap<String, String>();
+            orderParams.put(KinomirManager.IDORDER, idOrder.toString());
+            OrderStatusDTO orderDTO = KinomirManager.getOrderStatus(conn, orderParams);
+            if (orderDTO.getOrderState() <= 1) {
+                logger.info("Order in processing, drop it");
+                try {
+                    OrderToNullDTO orderNullDTO = KinomirManager.setOrderToNull(conn, orderParams);
+                    if ("0".equals(orderNullDTO.getError())) {
+                        logger.info("Order is set to null");
+                        purch.setResult(Purchase.REGISTERED);
+                    } else {
+                        logger.error("Error while drop order: " + orderNullDTO.getErrorDescription());
                     }
-                } else {
-                    logger.error("Order state is " + rs.getInt("OrderState") + " can't drop it");
-                    purch.setResult(Purchase.REGISTERED);
-                    return purch;
+                } catch (Exception ex) {
+                    logger.error("Error while drop order", ex);
                 }
+            } else {
+                logger.error("Order state is " + orderDTO.getOrderState().toString() + ", can't drop it");
+                purch.setResult(Purchase.REGISTERED);
+
             }
         } catch (SQLException ex) {
             logger.error("Error while drop order", ex);
@@ -200,12 +170,6 @@ public class PurchaseMemento {
             logger.error("Error while drop order", ex);
         } finally {
             try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (sp != null) {
-                    sp.close();
-                }
                 if (conn != null) {
                     conn.close();
                 }
@@ -219,52 +183,41 @@ public class PurchaseMemento {
 
     public static void sendSms(Long idOrder, String smsUrl, String userId, String password, String login) {
         Connection conn = null;
-        ResultSet rs = null;
+        Map<String, String> params = new HashMap<String, String>();
+        params.put(KinomirManager.IDORDER, idOrder.toString());
         try {
             conn = getConnection();
-            Map<String, String> params = new HashMap<String, String>();
-            params.put(KinomirManager.IDORDER, idOrder.toString());
-            rs = KinomirManager.getOrderInfo(conn, params);
-            if (rs.next()){
-                params.put(KinomirManager.IDCLIENT, rs.getString("idclient"));
-                String description = rs.getString("description");
-                if (description.length()>3){
-                    description = description.substring(description.length()-4);
-                }
-                String begintime = rs.getString("begintime");
-                String building = rs.getString("building");
-                rs.close();
-                rs = KinomirManager.getClientInfo(conn, params);
-                if (rs.next()){
-                    String phone = rs.getString("Cellular");
-                    rs.close();
-                    Document xml = DocumentHelper.createDocument();
-                    xml.setXMLEncoding("win-1251");
-                    Element requestElement = xml.addElement("request");
-                    requestElement.addElement("user_id").setText(userId);
-                    requestElement.addElement("user").setText(login);
-                    requestElement.addElement("pwd").setText(password);
-                    requestElement.addElement("command").setText("send");
-                    requestElement.addElement("phone").setText(phone);
-                    requestElement.addElement("message").setText(String.format("%1, %2 заказ №%3 пароль: %4",  new Object[]{building, begintime, idOrder, description}));
-                    requestElement.addElement("id").setText(idOrder.toString());
-                    requestElement.addElement("valid").setText("5");
-                    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-                    GregorianCalendar now = new GregorianCalendar();
-                    now.add(Calendar.HOUR_OF_DAY, -3);
-                    requestElement.addElement("schedule").setText(df.format(now.getTime()));
-                    requestElement.addElement("sender").setText("Kinomir");
-                    URLQuery.excutePost(smsUrl, xml.asXML());
-                }
-                
+            OrderInfoDTO orderInfo = KinomirManager.getOrderInfo(conn, params);
+            params.put(KinomirManager.IDCLIENT, orderInfo.getOrderInfo("idclient"));
+            String description = orderInfo.getOrderInfo("description");
+            if ((description != null) && (description.length() > 3)) {
+                description = description.substring(description.length() - 4);
             }
+            String begintime = orderInfo.getOrderInfo("begintime");
+            String building = orderInfo.getOrderInfo("building");
+            ClientInfoDTO clientInfo = KinomirManager.getClientInfo(conn, params);
+            String phone = clientInfo.getClientInfoField("Cellular");
+            Document xml = DocumentHelper.createDocument();
+            xml.setXMLEncoding("win-1251");
+            Element requestElement = xml.addElement("request");
+            requestElement.addElement("user_id").setText(userId);
+            requestElement.addElement("user").setText(login);
+            requestElement.addElement("pwd").setText(password);
+            requestElement.addElement("command").setText("send");
+            requestElement.addElement("phone").setText(phone);
+            requestElement.addElement("message").setText(String.format("%1, %2 заказ №%3 пароль: %4", new Object[]{building, begintime, idOrder, description}));
+            requestElement.addElement("id").setText(idOrder.toString());
+            requestElement.addElement("valid").setText("5");
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+            GregorianCalendar now = new GregorianCalendar();
+            now.add(Calendar.HOUR_OF_DAY, -3);
+            requestElement.addElement("schedule").setText(df.format(now.getTime()));
+            requestElement.addElement("sender").setText("Kinomir");
+            URLQuery.excutePost(smsUrl, xml.asXML());
         } catch (Exception ex) {
             logger.error("Error while drop order", ex);
         } finally {
             try {
-                if (rs != null) {
-                    rs.close();
-                }
                 if (conn != null) {
                     conn.close();
                 }
