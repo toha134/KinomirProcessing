@@ -10,7 +10,7 @@
       maxWait="5000"
       showSQL="true"
       validationQuery="SELECT 1"
-      url="jdbc:sybase:Tds:HomePC:5000/kinomir;sendStringParametersAsUnicode=false"
+      url="jdbc:sybase:Tds:HOME-PC:5000/kinomir;sendStringParametersAsUnicode=false"
       maxActive="4">
     </Resource>
 </Context>

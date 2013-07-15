@@ -1,5 +1,5 @@
 <%@page import="org.apache.log4j.Logger"%>
-<%@page import="ru.kinomir.processing.RusToTranslit"%>
+<%@page import="ru.kinomir.tools.RusToTranslit"%>
 <%@page import="ru.kinomir.processing.PurchaseMemento"%>
 <%@page import="ru.kinomir.processing.Purchase"%>
 <%@page import="java.io.InputStream"%>

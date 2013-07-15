@@ -58,28 +58,24 @@ public class PurchaseMemento {
             String curShow = orderInfo.getOrderInfo(SHOWNAME_COLUMN);
             Double amount = Double.parseDouble(orderInfo.getOrderInfo("ordertotalticketssum"));
             int count = 0;
+            int countAll = 0;
             for (Map<String, String> oneOrderString : orderInfo.getOrderInfoValues()) {
                 if (curShow.equals(oneOrderString.get(SHOWNAME_COLUMN))) {
                     count++;
                 } else {
                     longDesc.append('(').append(count).append(')').append(". Билеты на ").append(oneOrderString.get(SHOWNAME_COLUMN)).append(" ");;
-                    if (count == 1) {
-                        longDesc.append(count).append(" билет");
-                    } else if (count > 1 && count < 5) {
-                        longDesc.append(count).append(" билета");
-                    } else {
-                        longDesc.append(count).append(" билетов");
-                    }
                     curShow = oneOrderString.get(SHOWNAME_COLUMN);
-                    count = 0;
+                    count = 1;
                 }
+                countAll++;
             }
-            if (count == 1) {
-                longDesc.append(count).append(" билет");
-            } else if (count > 1 && count < 5) {
-                longDesc.append(count).append(" билета");
+            longDesc.append('(').append(count).append(')').append(". Итого ");
+            if (countAll == 1) {
+                longDesc.append(countAll).append(" билет");
+            } else if (countAll > 1 && countAll < 5) {
+                longDesc.append(countAll).append(" билета");
             } else {
-                longDesc.append(count).append(" билетов");
+                longDesc.append(countAll).append(" билетов");
             }
             String longDescStr = longDesc.toString();
             return new Purchase(amount, "Покупка билетов", longDescStr, orderId);
@@ -198,14 +194,14 @@ public class PurchaseMemento {
             ClientInfoDTO clientInfo = KinomirManager.getClientInfo(conn, params);
             String phone = clientInfo.getClientInfoField("Cellular");
             Document xml = DocumentHelper.createDocument();
-            xml.setXMLEncoding("win-1251");
+            xml.setXMLEncoding("windows-1251");
             Element requestElement = xml.addElement("request");
             requestElement.addElement("user_id").setText(userId);
             requestElement.addElement("user").setText(login);
             requestElement.addElement("pwd").setText(password);
             requestElement.addElement("command").setText("send");
             requestElement.addElement("phone").setText(phone);
-            requestElement.addElement("message").setText(String.format("%1, %2 заказ №%3 пароль: %4", new Object[]{building, begintime, idOrder, description}));
+            requestElement.addElement("message").setText(String.format("%1$s, %2$s заказ №%3$d пароль: %4$s", new Object[]{building, begintime, idOrder, description}));
             requestElement.addElement("id").setText(idOrder.toString());
             requestElement.addElement("valid").setText("5");
             DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -215,7 +211,7 @@ public class PurchaseMemento {
             requestElement.addElement("sender").setText("Kinomir");
             URLQuery.excutePost(smsUrl, xml.asXML());
         } catch (Exception ex) {
-            logger.error("Error while drop order", ex);
+            logger.error("Error while send sms", ex);
         } finally {
             try {
                 if (conn != null) {
