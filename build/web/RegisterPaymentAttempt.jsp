@@ -15,14 +15,14 @@
             logger.info("Register success payment orderId = " + trxId);
             final String attributes = new StringBuilder().append(request.getParameter("merchant_trx")).append(" ").append(request.getParameter("p.cardholder")).append(" ").append(request.getParameter("ts")).toString();
             purch = PurchaseMemento.registerPayment(trxId, bank_trx_id, attributes, amount, paymentMethod);
+            if ((null != purch) && (purch.getResult() == Purchase.REGISTERED)) {
+                if ("1".equals(getInitParameter("sendSMS"))) {
+                    PurchaseMemento.sendSms(trxId, getInitParameter("smsUrl"), getInitParameter("smsUserId"), getInitParameter("smsPassword"), getInitParameter("smsLogin"));
+                }
+            }
         } else {
             logger.info("Drop order orderId = " + trxId);
             purch = PurchaseMemento.dropOrder(trxId);
-        }
-        if ((null != purch) && (purch.getResult() == Purchase.REGISTERED)) {
-            if ("1".equals(getInitParameter("sendSMS"))) {
-                PurchaseMemento.sendSms(trxId, getInitParameter("smsUrl"), getInitParameter("smsUserId"), getInitParameter("smsPassword"), getInitParameter("smsLogin"));
-            }
         }
     } catch (Exception ex) {
         logger.error("Error while processing payment", ex);

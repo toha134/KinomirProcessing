@@ -180,6 +180,7 @@ public class PurchaseMemento {
         Map<String, String> params = new HashMap<String, String>();
         params.put(KinomirManager.IDORDER, idOrder.toString());
         try {
+            logger.debug("before send SMS");
             conn = getConnection();
             OrderInfoDTO orderInfo = KinomirManager.getOrderInfo(conn, params);
             params.put(KinomirManager.IDCLIENT, orderInfo.getOrderInfo("idclient"));
@@ -191,6 +192,8 @@ public class PurchaseMemento {
             String building = orderInfo.getOrderInfo("building");
             ClientInfoDTO clientInfo = KinomirManager.getClientInfo(conn, params);
             String phone = clientInfo.getClientInfoField("Cellular");
+            String smsText = String.format("%1$s, %2$s заказ №%3$d пароль: %4$s", new Object[]{building, begintime, idOrder, description});
+            logger.info(String.format("Send SMS to %1$s with text: ", new Object[]{phone, smsText}));
             Document xml = DocumentHelper.createDocument();
             xml.setXMLEncoding("windows-1251");
             Element requestElement = xml.addElement("request");
@@ -199,7 +202,7 @@ public class PurchaseMemento {
             requestElement.addElement("pwd").setText(password);
             requestElement.addElement("command").setText("send");
             requestElement.addElement("phone").setText(phone);
-            requestElement.addElement("message").setText(String.format("%1$s, %2$s заказ №%3$d пароль: %4$s", new Object[]{building, begintime, idOrder, description}));
+            requestElement.addElement("message").setText(smsText);
             requestElement.addElement("id").setText(idOrder.toString());
             requestElement.addElement("valid").setText("5");
             DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -208,6 +211,7 @@ public class PurchaseMemento {
             requestElement.addElement("schedule").setText(df.format(now.getTime()));
             requestElement.addElement("sender").setText("Kinomir");
             URLQuery.excutePost(smsUrl, xml.asXML());
+            logger.debug("after send sms");
         } catch (Exception ex) {
             logger.error("Error while send sms", ex);
         } finally {
