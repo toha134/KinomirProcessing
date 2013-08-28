@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Context antiJARLocking="true" path="/processing">
-    <Resource
-      name="jdbc/processingDS"
-      type="javax.sql.DataSource"
-      username="user2"
-      password="user_2"
-      driverClassName="com.sybase.jdbc4.jdbc.SybDriver"
-      maxIdle="2"
-      maxWait="5000"
-      showSQL="true"
-      validationQuery="SELECT 1"
-      url="jdbc:sybase:Tds:HOME-PC:5000/kinomir;sendStringParametersAsUnicode=false"
-      maxActive="4">
+<Context antiJARLocking="true" path="">
+  <Resource driverClassName="com.sybase.jdbc4.jdbc.SybDriver" maxActive="4" maxIdle="2" maxWait="5000" name="jdbc/processingDS" password="user_2" showSQL="true" type="javax.sql.DataSource" url="jdbc:sybase:Tds:HOME-PC:5000/kinomir;sendStringParametersAsUnicode=false" username="user2" validationQuery="SELECT 1">
     </Resource>
 </Context>
-
