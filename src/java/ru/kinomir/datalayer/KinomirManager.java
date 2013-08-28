@@ -83,7 +83,7 @@ public class KinomirManager {
         PreparedStatement sp = null;
         ResultSet rs = null;
         try {
-            sp = conn.prepareStatement("exec dbo.MyWeb_GetOrderStatus ?");
+            sp = conn.prepareStatement("exec dbo.WgA_GetOrderStatus ?");
             if (params.get(IDORDER) != null) {
                 sp.setInt(1, Integer.parseInt(params.get(IDORDER)));
             }
