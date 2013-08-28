@@ -193,7 +193,7 @@ public class PurchaseMemento {
             ClientInfoDTO clientInfo = KinomirManager.getClientInfo(conn, params);
             String phone = clientInfo.getClientInfoField("Cellular");
             String smsText = String.format("%1$s, %2$s заказ №%3$d пароль: %4$s", new Object[]{building, begintime, idOrder, description});
-            logger.info(String.format("Send SMS to %1$s with text: ", new Object[]{phone, smsText}));
+            logger.info(String.format("Send SMS to %1$s with text: %2$s", new Object[]{phone, smsText}));
             Document xml = DocumentHelper.createDocument();
             xml.setXMLEncoding("windows-1251");
             Element requestElement = xml.addElement("request");
