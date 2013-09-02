@@ -24,6 +24,7 @@ public class OrderInfoDTO {
     private static final String[] performanceColumns = {"showname", "idperformance", "performancestarttime", "hall", "building"};
     private static final String[] placeColumns = {"idplace", "rownom", "placenom"};
     private List<Map<String, String>> orderInfoValues = new ArrayList<Map<String, String>>();
+	boolean orderExists = false;
 
     public OrderInfoDTO() {
     }
@@ -31,6 +32,7 @@ public class OrderInfoDTO {
     public OrderInfoDTO(ResultSet rs) throws SQLException {
         try {
             while (rs.next()) {
+				orderExists = true;
                 Map<String, String> orderInfoValue = new HashMap<String, String>();
                 for (String orderCol : orderColumns) {
                     orderInfoValue.put(orderCol, rs.getString(orderCol));
@@ -47,6 +49,12 @@ public class OrderInfoDTO {
             throw SqlUtils.convertErrorToException(rs, ex);
         }
     }
+
+	public boolean isOrderExists() {
+		return orderExists;
+	}
+	
+	
 
     public List<Map<String, String>> getOrderInfoValues() {
         return orderInfoValues;

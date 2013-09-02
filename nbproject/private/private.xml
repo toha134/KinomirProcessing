@@ -2,4 +2,13 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/1"/>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/1">
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/web/CheckPaymentAvail.jsp</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/src/java/ru/kinomir/processing/PurchaseMemento.java</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/src/java/ru/kinomir/datalayer/KinomirManager.java</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/src/java/ru/kinomir/datalayer/dto/OrderInfoDTO.java</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/web/RegisterPaymentAttempt.jsp</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/src/java/ru/kinomir/datalayer/dto/AddPaymentResultDTO.java</file>
+        <file>file:/media/9C90D0D490D0B5CC/old_flash/KinomirProcessing/src/java/ru/kinomir/processing/Purchase.java</file>
+    </open-files>
 </project-private>

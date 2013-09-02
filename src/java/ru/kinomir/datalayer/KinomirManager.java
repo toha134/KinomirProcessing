@@ -94,7 +94,7 @@ public class KinomirManager {
         }
     }
 
-    public static AddPaymentResultDTO addPayment(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
+    public static AddPaymentResultDTO addPayment(Connection conn, Map<String, String> params, Logger logger) throws SQLException, InvalidParameterException, NumberFormatException {
         PreparedStatement sp = null;
         ResultSet rs = null;
         try {
@@ -130,7 +130,7 @@ public class KinomirManager {
                 sp.setNull(7, java.sql.Types.VARCHAR);
             }
             rs = sp.executeQuery();
-            return new AddPaymentResultDTO(rs);
+            return new AddPaymentResultDTO(rs, logger);
         } finally {
             SqlUtils.closeSQLObjects(rs, sp);
         }

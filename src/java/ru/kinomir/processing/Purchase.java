@@ -41,6 +41,7 @@ public class Purchase {
         this.amount = amount;
         this.desc = desc;
         this.longDesc = longDesc;
+		this.id = id;
     }
 
     public Double getAmount() {
