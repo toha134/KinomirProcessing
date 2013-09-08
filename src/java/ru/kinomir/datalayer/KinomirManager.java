@@ -56,6 +56,7 @@ public class KinomirManager {
     public static final String AMOUNT = "AMOUNT";
     public static final String BANKTRXID = "BANK_TRX_ID";
     public static final String PAYATTRIBYTES = "PAY_ATTRIBYTES";
+    public static final String RRN = "RRN";
 
     public static OrderInfoDTO getOrderInfo(Connection conn, Map<String, String> params) throws SQLException, InvalidParameterException {
         PreparedStatement sp = null;
@@ -98,7 +99,11 @@ public class KinomirManager {
         PreparedStatement sp = null;
         ResultSet rs = null;
         try {
-            sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?, ?, ?");
+            if (params.get("RRN") != null) {
+                sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?, ?, ?, ?");
+            } else {
+                sp = conn.prepareStatement("exec dbo.Wga_AddPayment ?, ?, ?, ?, ?, ?, ?");
+            }
             if (params.get(IDORDER) != null) {
                 sp.setLong(1, Long.parseLong(params.get(IDORDER)));
             }
@@ -128,6 +133,9 @@ public class KinomirManager {
                 sp.setString(7, params.get(PAYATTRIBYTES));
             } else {
                 sp.setNull(7, java.sql.Types.VARCHAR);
+            }
+            if (params.get(RRN) != null) {
+                sp.setString(8, params.get(RRN));
             }
             rs = sp.executeQuery();
             return new AddPaymentResultDTO(rs, logger);
