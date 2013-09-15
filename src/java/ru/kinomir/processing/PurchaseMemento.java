@@ -46,7 +46,7 @@ public class PurchaseMemento {
     private static final String SHOWNAME_COLUMN = "showname";
     private static final transient Logger logger = Logger.getLogger("ru.kinomir.processing.PurchaseMemento");
 
-    private static Connection getConnection() throws SQLException, NamingException {
+    protected static Connection getConnection() throws SQLException, NamingException {
         Context ctx = new InitialContext();
         DataSource dataSource = (DataSource) ctx.lookup("java:comp/env/jdbc/processingDS");
         Connection conn = dataSource.getConnection();
@@ -104,7 +104,7 @@ public class PurchaseMemento {
         return null;
     }
 
-    public static Purchase registerPayment(Long orderId, String bank_trx_id, String attributes, double amount, ServletConfig config, String rrn, String trx_id) {
+    public static Purchase registerPayment(Long orderId, String bank_trx_id, String attributes, double amount, ServletConfig config, String rrn) {
         Connection conn = null;
         Map<String, String> paymentParams = new HashMap<String, String>();
         paymentParams.put(KinomirManager.IDORDER, orderId.toString());
@@ -128,12 +128,12 @@ public class PurchaseMemento {
                 try {
                     logger.info("Try return payment to client");
                     StringBuilder returnQueryString = new StringBuilder(config.getInitParameter("returnURL"));
-                    returnQueryString.append("?trx_id=").append(trx_id);
+                    returnQueryString.append("?trx_id=").append(bank_trx_id);
                     returnQueryString.append("&p.rrn=").append(rrn);
                     returnQueryString.append("&amount=").append(Double.toString(amount));
                     DefaultHttpClient client = new DefaultHttpClient();
                     UsernamePasswordCredentials creds = new UsernamePasswordCredentials(config.getInitParameter("returnUser"), config.getInitParameter("returnPassword"));
-                    HttpGet httpget = new HttpGet("returnQueryString");
+                    HttpGet httpget = new HttpGet(returnQueryString.toString());
                     client.getCredentialsProvider().setCredentials(new AuthScope(httpget.getURI().getHost(), httpget.getURI().getPort()), creds);
                     HttpResponse response = client.execute(httpget);
                     HttpEntity entity = response.getEntity();

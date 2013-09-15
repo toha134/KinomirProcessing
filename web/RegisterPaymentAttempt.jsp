@@ -15,7 +15,7 @@
                 logger.info("Try register success payment orderId = " + trxId);
                 final String attributes = new StringBuilder().append(request.getParameter("merchant_trx")).append(" ").append(request.getParameter("p.cardholder")).append(" ").append(request.getParameter("ts")).toString();
                 final String rrn = request.getParameter("p.rrn");
-                purch = PurchaseMemento.registerPayment(trxId, bank_trx_id, attributes, amount, getServletConfig(), rrn, request.getParameter("trx_id"));
+                purch = PurchaseMemento.registerPayment(trxId, bank_trx_id, attributes, amount, getServletConfig(), rrn);
                 if ((null != purch) && (purch.getResult() == Purchase.REGISTERED)) {
                     logger.info("Register payment is  successfull, orderId = " + trxId);
                     if ("1".equals(getInitParameter("sendSMS"))) {

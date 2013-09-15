@@ -20,7 +20,7 @@ public class OrderInfoDTO {
 
     private static final String[] orderColumns = {"begintime", "brokerage", "timepayment",
         "orderexpiretime", "orderstate", "orderprice", "orderpaysum", "orderrecalltickets",
-        "saledticketssum", "saledtickets", "ordertotalticketssum", "ordertotaltickets", "description", "idclient"};
+        "saledticketssum", "saledtickets", "ordertotalticketssum", "ordertotaltickets", "description", "idclient", "paydocnum", "rrn", "attributes"};
     private static final String[] performanceColumns = {"showname", "idperformance", "performancestarttime", "hall", "building"};
     private static final String[] placeColumns = {"idplace", "rownom", "placenom"};
     private List<Map<String, String>> orderInfoValues = new ArrayList<Map<String, String>>();
