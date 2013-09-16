@@ -123,6 +123,11 @@ public class ReturnPaymentServlet extends HttpServlet {
 			logger.debug(ex.getMessage(), ex);
             el.addAttribute("Error", "2");
             el.addAttribute("ErrorDescription", "Unable return payment");
+        } catch (Exception ex) {
+            logger.error("Unknown error");
+			logger.debug(ex.getMessage(), ex);
+            el.addAttribute("Error", "2");
+            el.addAttribute("ErrorDescription", "Unable return payment");
         } finally {
             out.print(resXML.asXML());
             out.close();
