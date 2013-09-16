@@ -39,7 +39,7 @@ import ru.kinomir.datalayer.dto.OrderInfoDTO;
  */
 public class ReturnPaymentServlet extends HttpServlet {
 
-    private static final transient Logger logger = Logger.getLogger("ru.kinomir.processing.PurchaseMemento");
+    private static final transient Logger logger = Logger.getLogger("ru.kinomir.processing");
 
     /**
      * Processes requests for both HTTP
@@ -53,15 +53,17 @@ public class ReturnPaymentServlet extends HttpServlet {
      */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
+        response.setContentType("text/xml;charset=UTF-8");
         PrintWriter out = response.getWriter();
         Connection connection = null;
         Document resXML = DocumentHelper.createDocument();
         Element el = resXML.addElement("data");
         try {
             logger.info("Try return payment to client");
+			logger.info("Request string: " + request.getQueryString());
 
             Map<String, String> params = new HashMap<String, String>();
+			params.put(KinomirManager.IDORDER, request.getParameter("id_order"));
             connection = PurchaseMemento.getConnection();
             OrderInfoDTO orderInfo = KinomirManager.getOrderInfo(connection, params);
             StringBuilder returnQueryString = new StringBuilder(getInitParameter("returnURL"));
@@ -84,6 +86,7 @@ public class ReturnPaymentServlet extends HttpServlet {
                     answer.append(line);
                     line = in.readLine();
                 }
+				logger.info("Bank returns: " + answer.toString());
                 Document answerXML = DocumentHelper.parseText(answer.toString());
                 String returnResult = answerXML.valueOf("//MerchantAPI/RefundRes/Result/code");
                 if ("1".equals(returnResult)) {
@@ -94,22 +97,30 @@ public class ReturnPaymentServlet extends HttpServlet {
                     el.addAttribute("Error", "2");
                     el.addAttribute("ErrorDescription", "Unable return payment");
                 }
-            }
+            } else {
+				logger.error("Order not found");
+				el.addAttribute("Error", "2");
+				el.addAttribute("ErrorDescription", "Unable return payment, no order id");
+			}
 
         } catch (NamingException ex) {
             logger.error("Unable to get DB connection");
+			logger.debug(ex.getMessage(), ex);
             el.addAttribute("Error", "2");
             el.addAttribute("ErrorDescription", "Unable return payment");
         } catch (SQLException ex) {
             logger.error("Unable to get order info");
+			logger.debug(ex.getMessage(), ex);
             el.addAttribute("Error", "2");
             el.addAttribute("ErrorDescription", "Unable return payment");
         } catch (InvalidParameterException ex) {
             logger.error("Unable parse bank answer");
+			logger.debug(ex.getMessage(), ex);
             el.addAttribute("Error", "2");
             el.addAttribute("ErrorDescription", "Unable return payment");
         } catch (DocumentException ex) {
             logger.error("Unable parse bank answer");
+			logger.debug(ex.getMessage(), ex);
             el.addAttribute("Error", "2");
             el.addAttribute("ErrorDescription", "Unable return payment");
         } finally {
