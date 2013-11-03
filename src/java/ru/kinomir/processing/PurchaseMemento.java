@@ -269,4 +269,15 @@ public class PurchaseMemento {
             }
         }
     }
+
+    public static void sendMail(Long idOrder, Double amount, int resultCode, String mailURL) {
+        Map<String, String> requestParams = new HashMap<String, String>();
+        requestParams.put("result_code", Integer.toString(resultCode));
+        requestParams.put("amount", amount.toString());
+        try {
+            URLQuery.excutePost(mailURL + Long.toString(idOrder), requestParams);
+        } catch (Exception ex) {
+            logger.error("Error while send mail", ex);
+        }
+    }
 }

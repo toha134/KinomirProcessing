@@ -7,7 +7,7 @@
     Logger logger = Logger.getLogger("ru.kinomir.processing");
     try {
         logger.info("Register query: " + request.getQueryString());
-        if (request.getParameter("merchant_trx") != null){
+        if (request.getParameter("merchant_trx") != null) {
             final Long trxId = new Long(request.getParameter("merchant_trx"));
             if ("1".equals(request.getParameter("result_code"))) {
                 final double amount = Double.parseDouble(request.getParameter("amount"));
@@ -18,6 +18,10 @@
                 purch = PurchaseMemento.registerPayment(trxId, bank_trx_id, attributes, amount, getServletConfig(), rrn);
                 if ((null != purch) && (purch.getResult() == Purchase.REGISTERED)) {
                     logger.info("Register payment is  successfull, orderId = " + trxId);
+                    if ("1".equals(getInitParameter("sendMail"))) {
+                        PurchaseMemento.sendMail(trxId, purch.getAmount(), Purchase.REGISTERED, getInitParameter("mailUrl"));
+                    }
+
                     if ("1".equals(getInitParameter("sendSMS"))) {
                         PurchaseMemento.sendSms(trxId, getInitParameter("smsUrl"), getInitParameter("smsUserId"), getInitParameter("smsPassword"), getInitParameter("smsLogin"));
                     }
