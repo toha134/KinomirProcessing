@@ -74,8 +74,8 @@ public class URLQuery {
             url = new URL(targetURL);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/xml");
-            connection.setRequestProperty("Content-Length", Integer.toString(requstContent.toString().getBytes("UTF8").length));
+            //connection.setRequestProperty("Content-Type", "application/xml");
+            //connection.setRequestProperty("Content-Length", Integer.toString(requstContent.toString().getBytes("UTF8").length));
 
             connection.setUseCaches(false);
             connection.setDoInput(true);
