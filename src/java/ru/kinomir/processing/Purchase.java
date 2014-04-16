@@ -59,4 +59,10 @@ public class Purchase {
     public String getLongDesc() {
         return longDesc;
     }
+
+	public void setDesc(String desc) {
+		this.desc = desc;
+	}
+	
+	
 }

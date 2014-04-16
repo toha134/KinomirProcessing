@@ -22,13 +22,19 @@
 						PurchaseMemento.sendSms(trxId, getInitParameter("smsUrl"), getInitParameter("smsUserId"), getInitParameter("smsPassword"), getInitParameter("smsLogin"), getInitParameter("smsName"));
 					}
 				}
+				if ("1".equals(getInitParameter("sendMail"))) {
+					PurchaseMemento.sendMail(trxId, purch.getAmount(), Integer.parseInt(request.getParameter("result_code")), getInitParameter("mailUrl"));
+				}
 			} else {
 				logger.info("Drop order orderId = " + trxId);
 				purch = PurchaseMemento.dropOrder(trxId);
+				if (purch.getResult() == Purchase.REGISTERED) {
+					if ("1".equals(getInitParameter("sendMail"))) {
+						PurchaseMemento.sendMail(trxId, 0D, Integer.parseInt(request.getParameter("result_code")), getInitParameter("mailUrl"));
+					}
+				}
 			}
-			if ("1".equals(getInitParameter("sendMail"))) {
-				PurchaseMemento.sendMail(trxId, purch.getAmount(), Integer.parseInt(request.getParameter("result_code")), getInitParameter("mailUrl"));
-			}
+
 		} else {
 			logger.error("No 'o.mer_trx_id' parametr in query");
 		}

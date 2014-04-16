@@ -32,8 +32,8 @@ public class AddPaymentResultDTO {
 					if (rs.getMetaData().getColumnCount() == 3) {
 						logger.debug(String.format("%1$s %2$s %3$s", new Object[]{rs.getString(1), rs.getString(2), rs.getString(3)}));
 					} else {
-						for (int i = 1; i<=rs.getMetaData().getColumnCount(); i++){
-							logger.debug(rs.getMetaData().getColumnName(i)+" = "+rs.getString(i));
+						for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+							logger.debug(rs.getMetaData().getColumnName(i) + " = " + rs.getString(i));
 						}
 					}
 				} while (rs.next());
@@ -73,5 +73,12 @@ public class AddPaymentResultDTO {
 
 	public void setPaymentId(String paymentId) {
 		this.paymentId = paymentId;
+	}
+
+	@Override
+	public String toString() {
+		return new StringBuilder().append("PaymentResult[result = ").append(result)
+				.append(", description = ").append(resultDescription).append(", idPayment = ")
+				.append(paymentId).append("]").toString();
 	}
 }

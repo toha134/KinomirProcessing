@@ -4,14 +4,15 @@
  */
 package ru.kinomir.processing;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.ConnectionFactory;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
 import javax.naming.Context;
@@ -28,7 +29,6 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.log4j.Logger;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
 import ru.kinomir.datalayer.KinomirManager;
 import ru.kinomir.datalayer.dto.AddPaymentResultDTO;
 import ru.kinomir.datalayer.dto.ClientInfoDTO;
@@ -43,6 +43,7 @@ import ru.kinomir.tools.http.URLQuery;
  */
 public class PurchaseMemento {
 
+	private final static String QUEUE_NAME = "kinomir_sms";
 	private static final String SHOWNAME_COLUMN = "showname";
 	private static final transient Logger logger = Logger.getLogger("ru.kinomir.processing.PurchaseMemento");
 
@@ -89,9 +90,11 @@ public class PurchaseMemento {
 				return new Purchase(amount, "Покупка билетов", longDescStr, orderId);
 			}
 		} catch (SQLException ex) {
-			logger.error("Error while register payment", ex);
+			logger.error("Error while register payment:" + ex.getMessage());
+			logger.debug("Error while register payment", ex);
 		} catch (NamingException ex) {
-			logger.error("Error while register payment", ex);
+			logger.error("Error while register payment" + ex.getMessage());
+			logger.debug("Error while register payment", ex);
 		} finally {
 			try {
 				if (conn != null) {
@@ -116,22 +119,39 @@ public class PurchaseMemento {
 		paymentParams.put(KinomirManager.PAYATTRIBYTES, attributes);
 		paymentParams.put(KinomirManager.RRN, rrn);
 		try {
+			Purchase res = new Purchase(amount, "", null, orderId);
 			conn = getConnection();
-			AddPaymentResultDTO paymentResult = KinomirManager.addPayment(conn, paymentParams, logger);
-			String resultDesc = paymentResult.getResultDescription();
-			logger.debug("Register result: " + paymentResult.getResultDescription());
-			Purchase res = new Purchase(amount, resultDesc, null, orderId);
-			if ("0".equals(paymentResult.getResult())) {
-				res.setResult(Purchase.REGISTERED);
-			} else {
+			OrderInfoDTO orderInfo = null;
+			try {
+				orderInfo = KinomirManager.getOrderInfo(conn, paymentParams);
+			} catch (SQLException ex) {
+				logger.error("Unable to find order id = " + orderId + "Error is: " + ex.getMessage());
+				logger.debug("Unable find order", ex);
+			}
+			if ((orderInfo != null) && (orderInfo.isOrderExists())) {
+
+				AddPaymentResultDTO paymentResult = KinomirManager.addPayment(conn, paymentParams, logger);
+				logger.debug("Register result: " + paymentResult.toString());
+				String resultDesc = paymentResult.getResultDescription();
+				res.setDesc(resultDesc);
+				if ("0".equals(paymentResult.getResult())) {
+					res.setResult(Purchase.REGISTERED);
+					return res;
+				} else {
+					orderInfo = null;
+				}
+
+			}
+			if ((orderInfo == null) || (!orderInfo.isOrderExists())) {
 				//TODO: Надо сделать возврат денег
 				try {
 					logger.info("Try return payment to client");
+					DefaultHttpClient client = (DefaultHttpClient) ReturnPaymentServlet.createSslHttpClient(config.getInitParameter("ksPath"), config.getInitParameter("ksPass"), config.getInitParameter("ksType"), config.getInitParameter("tsPath"), config.getInitParameter("tsPass"), config.getInitParameter("tsType"));
 					StringBuilder returnQueryString = new StringBuilder(config.getInitParameter("returnURL"));
 					returnQueryString.append("?trx_id=").append(bank_trx_id);
 					returnQueryString.append("&p.rrn=").append(rrn);
 					returnQueryString.append("&amount=").append(Double.toString(amount));
-					DefaultHttpClient client = new DefaultHttpClient();
+					logger.info("Refund request: " + returnQueryString.toString());
 					UsernamePasswordCredentials creds = new UsernamePasswordCredentials(config.getInitParameter("returnUser"), config.getInitParameter("returnPassword"));
 					HttpGet httpget = new HttpGet(returnQueryString.toString());
 					client.getCredentialsProvider().setCredentials(new AuthScope(httpget.getURI().getHost(), httpget.getURI().getPort()), creds);
@@ -144,15 +164,22 @@ public class PurchaseMemento {
 						answer.append(line);
 						line = in.readLine();
 					}
+					logger.info("Bank answer: " + answer.toString());
 					Document answerXML = DocumentHelper.parseText(answer.toString());
-					String returnResult = answerXML.valueOf("//MerchantAPI/RefundRes/Result/code");
+					String returnResult = answerXML.valueOf("//MerchantAPI/Message/RefundResponse/Result/code");
 					if ("1".equals(returnResult)) {
 						logger.info("Payment is returns to client");
+						res.setResult(Purchase.PAYMENT_REVERSED);
 					} else if ("2".equals(returnResult)) {
 						logger.error("Unable return to client");
+					} else {
+						logger.error("Refund result code: " + returnResult);
+						logger.error("Refund message: " + answerXML.valueOf("//MerchantAPI/Message/Result/desc"));
 					}
 				} catch (Exception ex) {
+					logger.error("Error while return payment: " + ex.getMessage());
 					logger.debug("Error while return payment", ex);
+					
 				}
 				res.setResult(Purchase.PAYMENT_FAILED);
 			}
@@ -199,7 +226,7 @@ public class PurchaseMemento {
 				}
 			} else {
 				logger.error("Order " + idOrder.toString() + " state is " + orderDTO.getOrderState().toString() + ", can't drop it");
-				purch.setResult(Purchase.REGISTERED);
+				purch.setResult(Purchase.CPA_REJECTED);
 
 			}
 		} catch (SQLException ex) {
@@ -233,31 +260,33 @@ public class PurchaseMemento {
 			if ((description != null) && (description.length() > 3)) {
 				description = description.substring(description.length() - 4);
 			}
-			String begintime = orderInfo.getOrderInfo("performancestarttime");
+			DateFormat bdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+			String begintime;
+			try {
+				begintime = bdf.format(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(orderInfo.getOrderInfo("performancestarttime")));
+			} catch (ParseException ex) {
+				begintime = orderInfo.getOrderInfo("performancestarttime");
+			}
 			String building = orderInfo.getOrderInfo("building");
 			ClientInfoDTO clientInfo = KinomirManager.getClientInfo(conn, params);
 			String phone = clientInfo.getClientInfoField("Cellular");
 			String smsText = String.format("%1$s, %2$s заказ №%3$d пароль: %4$s", new Object[]{building, begintime, idOrder, description});
 			if (null != phone && !"".equals(phone)) {
-				if (phone.matches("7\\d{9}")) {
+				if (phone.matches("7\\d{10}")) {
 					logger.info(String.format("Send SMS to %1$s with text: %2$s", new Object[]{phone, smsText}));
-					Document xml = DocumentHelper.createDocument();
-					xml.setXMLEncoding("windows-1251");
-					Element requestElement = xml.addElement("request");
-					requestElement.addElement("user_id").setText(userId);
-					requestElement.addElement("user").setText(login);
-					requestElement.addElement("pwd").setText(password);
-					requestElement.addElement("command").setText("send");
-					requestElement.addElement("phone").setText(phone);
-					requestElement.addElement("message").setText(smsText);
-					requestElement.addElement("id").setText(idOrder.toString());
-					requestElement.addElement("valid").setText("5");
-					DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-					GregorianCalendar now = new GregorianCalendar();
-					now.add(Calendar.HOUR_OF_DAY, -3);
-					requestElement.addElement("schedule").setText(df.format(now.getTime()));
-					requestElement.addElement("sender").setText(smsName);
-					URLQuery.excutePost(smsUrl, xml.asXML());
+					ConnectionFactory factory = new ConnectionFactory();
+					factory.setHost("localhost");
+					com.rabbitmq.client.Connection connection = factory.newConnection();
+					Channel channel = connection.createChannel();
+					try {
+						channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+						String message = "<message><to>" + phone + "</to><text>" + smsText + "</text><id>" + idOrder.toString() + "</id></message>";
+						channel.basicPublish("", QUEUE_NAME, null, message.getBytes());
+						//System.out.println(" [x] Sent '" + message + "'");
+					} finally {
+						channel.close();
+						connection.close();
+					}
 				} else {
 					logger.info("SMS text: " + smsText);
 					logger.error("SMS was not sent. Error in number: " + phone);
