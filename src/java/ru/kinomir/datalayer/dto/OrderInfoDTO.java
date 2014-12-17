@@ -20,7 +20,7 @@ public class OrderInfoDTO {
 
 	private static final String[] orderColumns = {"begintime", "brokerage", "timepayment",
 		"orderexpiretime", "orderstate", "orderprice", "orderpaysum", "orderrecalltickets",
-		"saledticketssum", "saledtickets", "ordertotalticketssum", "ordertotaltickets", "description", "idclient", "paydocnum", "rrn", "attributes"};
+		"saledticketssum", "saledtickets", "ordertotalticketssum", "ordertotaltickets", "description", "idclient", "paydocnum", "rrn", "attributes", "amount"};
 	private static final String[] performanceColumns = {"showname", "idperformance", "performancestarttime", "hall", "building"};
 	private static final String[] placeColumns = {"idplace", "rownom", "placenom"};
 	private List<Map<String, String>> orderInfoValues = new ArrayList<Map<String, String>>();
@@ -35,7 +35,10 @@ public class OrderInfoDTO {
 				orderExists = true;
 				Map<String, String> orderInfoValue = new HashMap<String, String>();
 				for (String orderCol : orderColumns) {
-					orderInfoValue.put(orderCol, rs.getString(orderCol));
+					try {
+						orderInfoValue.put(orderCol, rs.getString(orderCol));
+					} catch (SQLException ex) {
+					}
 				}
 				if (rs.getInt("orderstate") != 3) {
 					for (String orderCol : performanceColumns) {

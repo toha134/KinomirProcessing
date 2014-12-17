@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -26,7 +27,12 @@ import java.util.Map;
 import javax.naming.NamingException;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -42,6 +48,7 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.conn.BasicClientConnectionManager;
 
 
@@ -86,6 +93,25 @@ public class ReturnPaymentServlet extends HttpServlet {
 		KeyStore keyStore = null;
 		KeyManagerFactory kmf = null;
 		TrustManagerFactory tmf = null;
+		X509TrustManager tm = null;
+		X509HostnameVerifier verifier = new X509HostnameVerifier() {
+			@Override
+			public void verify(String string, SSLSocket ssls) throws IOException {
+			}
+
+			@Override
+			public void verify(String string, X509Certificate xc) throws SSLException {
+			}
+
+			@Override
+			public void verify(String string, String[] strings, String[] strings1) throws SSLException {
+			}
+
+			@Override
+			public boolean verify(String string, SSLSession ssls) {
+				return true;
+			}
+		};
 		FileInputStream instream;
 		if (trustStorePath != null) {
 			trustStore = KeyStore.getInstance(tsType);
@@ -97,6 +123,18 @@ public class ReturnPaymentServlet extends HttpServlet {
 			} finally {
 				instream.close();
 			}
+		} else {
+			tm = new X509TrustManager() {
+				public void checkClientTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+				}
+
+				public void checkServerTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+				}
+
+				public X509Certificate[] getAcceptedIssuers() {
+					return null;
+				}
+			};
 		}
 		if (keyStorePath != null) {
 			keyStore = KeyStore.getInstance(ksType);
@@ -110,10 +148,10 @@ public class ReturnPaymentServlet extends HttpServlet {
 			}
 		}
 		SSLContext sslcontext = SSLContext.getInstance("TLS");
-		sslcontext.init(kmf != null ? kmf.getKeyManagers() : null, tmf != null ? tmf.getTrustManagers() : null, null);
+		sslcontext.init(kmf != null ? kmf.getKeyManagers() : null, tmf != null ? tmf.getTrustManagers() : new TrustManager[]{tm}, null);
 		SSLSocketFactory sf = new SSLSocketFactory(
 				sslcontext,
-				SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+				verifier);
 		SchemeRegistry schemeRegistry = new SchemeRegistry();
 		schemeRegistry.register(new Scheme("https", 443, sf.getSocketFactory()));
 		ClientConnectionManager connMrg = new BasicClientConnectionManager(schemeRegistry);
@@ -150,10 +188,11 @@ public class ReturnPaymentServlet extends HttpServlet {
 			if (orderInfo.isOrderExists()) {
 				returnQueryString.append("?trx_id=").append(orderInfo.getOrderInfo("paydocnum"));
 				returnQueryString.append("&p.rrn=").append(orderInfo.getOrderInfo("rrn"));
-				returnQueryString.append("&amount=").append(orderInfo.getOrderInfo("amount"));
+				returnQueryString.append("&amount=").append(Math.round(Double.parseDouble(orderInfo.getOrderInfo("amount")) * 100));
 				DefaultHttpClient client = (DefaultHttpClient) createSslHttpClient(getInitParameter("ksPath"), getInitParameter("ksPass"), getInitParameter("ksType"), getInitParameter("tsPath"), getInitParameter("tsPass"), getInitParameter("tsType"));
 				UsernamePasswordCredentials creds = new UsernamePasswordCredentials(getInitParameter("returnUser"), getInitParameter("returnPassword"));
 				HttpGet httpget;
+				logger.info("Return query: " + returnQueryString.toString());
 				httpget = new HttpGet(returnQueryString.toString());
 				client.getCredentialsProvider().setCredentials(new AuthScope(httpget.getURI().getHost(), httpget.getURI().getPort()), creds);
 				HttpResponse bankResponse;
@@ -179,7 +218,7 @@ public class ReturnPaymentServlet extends HttpServlet {
 						el.addAttribute("ErrorDescription", "Unable return payment");
 					} else {
 						el.addAttribute("Error", returnResult);
-						el.addAttribute("ErrorDescription", answerXML.valueOf("//MerchantAPI/Message/Result/desc"));
+						el.addAttribute("ErrorDescription", answerXML.valueOf("//MerchantAPI/Message/RefundResponse/Result/desc"));
 					}
 				} else {
 					el.addAttribute("Error", "-1");
