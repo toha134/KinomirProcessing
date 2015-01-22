@@ -2,16 +2,11 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/1"/>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
-    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/1">
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/processing/PurchaseMemento.java</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/web/RegisterPaymentAttempt.jsp</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/web/CheckPaymentAvail.jsp</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/datalayer/KinomirManager.java</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/processing/Purchase.java</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/processing/ReturnPaymentServlet.java</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/web/WEB-INF/web.xml</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/web/META-INF/context.xml</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/datalayer/dto/OrderInfoDTO.java</file>
-        <file>file:/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/datalayer/dto/AddPaymentResultDTO.java</file>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/run/media/anton/C8F07275F0726998/My/KinomirProcessing/web/RegisterPaymentAttempt.jsp</file>
+            <file>file:/run/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/processing/PurchaseMemento.java</file>
+            <file>file:/run/media/anton/C8F07275F0726998/My/KinomirProcessing/src/java/ru/kinomir/processing/ReturnPaymentServlet.java</file>
+        </group>
     </open-files>
 </project-private>
