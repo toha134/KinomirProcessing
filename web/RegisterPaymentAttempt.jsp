@@ -30,10 +30,7 @@
                 }
             } else {
                 logger.info("Drop order orderId = " + trxId);
-                if ("1".equals(getInitParameter("sendSMS"))) {
-                    PurchaseMemento.sendCancelSms(trxId);
-                }
-                purch = PurchaseMemento.dropOrder(trxId);
+                purch = PurchaseMemento.dropOrder(trxId, "1".equals(getInitParameter("sendSMS")));
                 if (purch.getResult() == Purchase.REGISTERED) {
                     if ("1".equals(getInitParameter("sendMail"))) {
                         PurchaseMemento.sendMail(trxId, 0D, Integer.parseInt(request.getParameter("result_code")), getInitParameter("mailUrl"));

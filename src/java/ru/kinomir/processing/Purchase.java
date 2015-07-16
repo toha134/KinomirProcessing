@@ -33,8 +33,8 @@ public class Purchase {
         return result;
     }
 
-    public void setResult(int resilt) {
-        this.result = resilt;
+    public void setResult(int result) {
+        this.result = result;
     }
 
     public Purchase(Double amount, String desc, String longDesc, Long id) {
@@ -42,6 +42,7 @@ public class Purchase {
         this.desc = desc;
         this.longDesc = longDesc;
 		this.id = id;
+        result = PAYMENT_REJECTED;
     }
 
     public Double getAmount() {

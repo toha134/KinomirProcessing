@@ -88,21 +88,23 @@ public class PurchaseMemento {
                     longDesc.append(countAll).append(" билетов");
                 }
                 String longDescStr = longDesc.toString();
-                return new Purchase(amount, "Покупка билетов", longDescStr, orderId);
+                Purchase result = new Purchase(amount, "Покупка билетов", longDescStr, orderId);
+                result.setResult(Purchase.REGISTERED);
+                return result;
             }
         } catch (SQLException ex) {
-            logger.error("Error while register payment:" + ex.getMessage());
-            logger.debug("Error while register payment", ex);
-        } catch (NamingException ex) {
-            logger.error("Error while register payment" + ex.getMessage());
-            logger.debug("Error while register payment", ex);
+            logger.error("Error while get order [" + orderId + "] info:" + ex.getMessage());
+            logger.debug("Error while get order [" + orderId + "] info", ex);
+        } catch (Exception ex) {
+            logger.error("Error while get order [" + orderId + "] info" + ex.getMessage());
+            logger.debug("Error while get order [" + orderId + "] info", ex);
         } finally {
             try {
                 if (conn != null) {
                     conn.close();
                 }
             } catch (SQLException ex) {
-                logger.error("Error while register payment", ex);
+                logger.debug("Error while get order ["+orderId+"] info", ex);
             }
         }
         return null;
@@ -126,7 +128,7 @@ public class PurchaseMemento {
             try {
                 orderInfo = KinomirManager.getOrderInfo(conn, paymentParams);
             } catch (SQLException ex) {
-                logger.error("Unable to find order id = " + orderId + "Error is: " + ex.getMessage());
+                logger.error("Unable to find order id = " + orderId + " Error is: " + ex.getMessage());
                 logger.debug("Unable find order", ex);
             }
             if ((orderInfo != null) && (orderInfo.isOrderExists())) {
@@ -145,6 +147,7 @@ public class PurchaseMemento {
             }
             if ((orderInfo == null) || (!orderInfo.isOrderExists())) {
                 //TODO: Надо сделать возврат денег
+                res.setResult(Purchase.PAYMENT_FAILED);
                 try {
                     logger.info("Try return payment to client");
                     DefaultHttpClient client = (DefaultHttpClient) ReturnPaymentServlet.createSslHttpClient(config.getInitParameter("ksPath"), config.getInitParameter("ksPass"), config.getInitParameter("ksType"), config.getInitParameter("tsPath"), config.getInitParameter("tsPass"), config.getInitParameter("tsType"));
@@ -182,7 +185,6 @@ public class PurchaseMemento {
                     logger.debug("Error while return payment", ex);
 
                 }
-                res.setResult(Purchase.PAYMENT_FAILED);
             }
             return res;
         } catch (NamingException ex) {
@@ -203,7 +205,7 @@ public class PurchaseMemento {
         return null;
     }
 
-    public static Purchase dropOrder(Long idOrder) {
+    public static Purchase dropOrder(Long idOrder, boolean sendSMS) {
         Connection conn = null;
         Purchase purch = new Purchase(0d, "", "", idOrder);
         purch.setResult(Purchase.PAYMENT_FAILED);
@@ -213,6 +215,9 @@ public class PurchaseMemento {
             orderParams.put(KinomirManager.IDORDER, idOrder.toString());
             OrderStatusDTO orderDTO = KinomirManager.getOrderStatus(conn, orderParams);
             if (orderDTO.getOrderState() <= 1) {
+                if (sendSMS) {
+                    sendCancelSms(idOrder);
+                }
                 logger.info(String.format("Order %1$d in processing, drop it", new Object[]{idOrder}));
                 try {
                     OrderToNullDTO orderNullDTO = KinomirManager.setOrderToNull(conn, orderParams);
@@ -228,7 +233,6 @@ public class PurchaseMemento {
             } else {
                 logger.error("Order " + idOrder.toString() + " state is " + orderDTO.getOrderState().toString() + ", can't drop it");
                 purch.setResult(Purchase.CPA_REJECTED);
-
             }
         } catch (SQLException ex) {
             logger.error("Error while drop order " + idOrder.toString() + ". " + ex.getMessage());
