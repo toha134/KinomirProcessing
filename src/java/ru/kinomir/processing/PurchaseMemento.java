@@ -64,39 +64,42 @@ public class PurchaseMemento {
             conn = getConnection();
             OrderInfoDTO orderInfo = KinomirManager.getOrderInfo(conn, params);
             if (orderInfo.isOrderExists()) {
-                StringBuilder longDesc = new StringBuilder("Билеты на ").append(orderInfo.getOrderInfo(SHOWNAME_COLUMN)).append(" ");
-                String curShow = orderInfo.getOrderInfo(SHOWNAME_COLUMN);
-                Double amount = Double.parseDouble(orderInfo.getOrderInfo("ordertotalticketssum"));
-                int count = 0;
-                int countAll = 0;
-                for (Map<String, String> oneOrderString : orderInfo.getOrderInfoValues()) {
-                    if (curShow.equals(oneOrderString.get(SHOWNAME_COLUMN))) {
-                        count++;
-                    } else {
-                        longDesc.append('(').append(count).append(')').append(". Билеты на ").append(oneOrderString.get(SHOWNAME_COLUMN)).append(" ");;
-                        curShow = oneOrderString.get(SHOWNAME_COLUMN);
-                        count = 1;
+                if ("1".equals(orderInfo.getOrderInfo("orderstate")) && (Math.abs(Double.parseDouble(orderInfo.getOrderInfo("brokerage")) - 0.0001) < 0.00011)) {
+                    StringBuilder longDesc = new StringBuilder("Билеты на ").append(orderInfo.getOrderInfo(SHOWNAME_COLUMN)).append(" ");
+                    String curShow = orderInfo.getOrderInfo(SHOWNAME_COLUMN);
+                    Double amount = Double.parseDouble(orderInfo.getOrderInfo("ordertotalticketssum"));
+                    int count = 0;
+                    int countAll = 0;
+                    for (Map<String, String> oneOrderString : orderInfo.getOrderInfoValues()) {
+                        if (curShow.equals(oneOrderString.get(SHOWNAME_COLUMN))) {
+                            count++;
+                        } else {
+                            longDesc.append('(').append(count).append(')').append(". Билеты на ").append(oneOrderString.get(SHOWNAME_COLUMN)).append(" ");;
+                            curShow = oneOrderString.get(SHOWNAME_COLUMN);
+                            count = 1;
+                        }
+                        countAll++;
                     }
-                    countAll++;
-                }
-                longDesc.append('(').append(count).append(')').append(". Итого ");
-                if (countAll == 1) {
-                    longDesc.append(countAll).append(" билет");
-                } else if (countAll > 1 && countAll < 5) {
-                    longDesc.append(countAll).append(" билета");
+                    longDesc.append('(').append(count).append(')').append(". Итого ");
+                    if (countAll == 1) {
+                        longDesc.append(countAll).append(" билет");
+                    } else if (countAll > 1 && countAll < 5) {
+                        longDesc.append(countAll).append(" билета");
+                    } else {
+                        longDesc.append(countAll).append(" билетов");
+                    }
+                    String longDescStr = longDesc.toString();
+                    Purchase result = new Purchase(amount, "Покупка билетов", longDescStr, orderId);
+                    result.setResult(Purchase.REGISTERED);
+                    return result;
                 } else {
-                    longDesc.append(countAll).append(" билетов");
+                    logger.error("Wrong order state for id = " + orderId);
                 }
-                String longDescStr = longDesc.toString();
-                Purchase result = new Purchase(amount, "Покупка билетов", longDescStr, orderId);
-                result.setResult(Purchase.REGISTERED);
-                return result;
+            } else {
+                logger.error("No order for id = " + orderId);
             }
-        } catch (SQLException ex) {
-            logger.error("Error while get order [" + orderId + "] info:" + ex.getMessage());
-            logger.debug("Error while get order [" + orderId + "] info", ex);
         } catch (Exception ex) {
-            logger.error("Error while get order [" + orderId + "] info" + ex.getMessage());
+            logger.error("Error while get order [" + orderId + "] info: " + ex.getMessage());
             logger.debug("Error while get order [" + orderId + "] info", ex);
         } finally {
             try {
@@ -104,7 +107,7 @@ public class PurchaseMemento {
                     conn.close();
                 }
             } catch (SQLException ex) {
-                logger.debug("Error while get order ["+orderId+"] info", ex);
+                logger.debug("Error while get order [" + orderId + "] info", ex);
             }
         }
         return null;
@@ -154,7 +157,7 @@ public class PurchaseMemento {
                     StringBuilder returnQueryString = new StringBuilder(config.getInitParameter("returnURL"));
                     returnQueryString.append("?trx_id=").append(bank_trx_id);
                     returnQueryString.append("&p.rrn=").append(rrn);
-                    returnQueryString.append("&amount=").append(Double.toString(amount));
+                    returnQueryString.append("&amount=").append(Long.toString(Math.round(amount)));
                     logger.info("Refund request: " + returnQueryString.toString());
                     UsernamePasswordCredentials creds = new UsernamePasswordCredentials(config.getInitParameter("returnUser"), config.getInitParameter("returnPassword"));
                     HttpGet httpget = new HttpGet(returnQueryString.toString());
@@ -279,14 +282,16 @@ public class PurchaseMemento {
             addSmsToQueue(phone, smsText, idOrder);
             logger.debug("after send sms");
         } catch (Exception ex) {
-            logger.error("Error while send sms", ex);
+            logger.error("Error while send sms: " + ex.getMessage());
+            logger.debug("Error while send sms", ex);
         } finally {
             try {
                 if (conn != null) {
                     conn.close();
                 }
             } catch (SQLException ex) {
-                logger.error("Error while send SMS", ex);
+                logger.error("Error while send sms: " + ex.getMessage());
+                logger.debug("Error while send sms", ex);
             }
         }
     }
@@ -306,20 +311,32 @@ public class PurchaseMemento {
             addSmsToQueue(phone, smsText, idOrder);
             logger.debug("after send sms");
         } catch (Exception ex) {
-            logger.error("Error while send sms", ex);
+            logger.error("Error while send sms: " + ex.getMessage());
+            logger.debug("Error while send sms", ex);
         } finally {
             try {
                 if (conn != null) {
                     conn.close();
                 }
             } catch (SQLException ex) {
-                logger.error("Error while send SMS", ex);
+                logger.error("Error while send sms: " + ex.getMessage());
+                logger.debug("Error while send sms", ex);
             }
         }
     }
 
     private static void addSmsToQueue(String phone, String smsText, Long idOrder) throws IOException {
+
         if (null != phone && !"".equals(phone)) {
+            phone = phone.trim();
+            if (phone.matches("^\\d{10}$")) {
+                phone = "7" + phone;
+            }
+            phone = phone.replace("+7", "7");
+            phone = phone.replace("+8", "7");
+            if (phone.matches("^8\\d{10}$")) {
+                phone = "7" + phone.substring(1);
+            }
             if (phone.matches("7\\d{10}")) {
                 logger.info(String.format("Send SMS to %1$s with text: %2$s", new Object[]{phone, smsText}));
                 ConnectionFactory factory = new ConnectionFactory();
